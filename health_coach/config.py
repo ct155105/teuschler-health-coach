@@ -18,6 +18,10 @@ GOOGLE_CLOUD_LOCATION = os.environ["GOOGLE_CLOUD_LOCATION"]
 # LLM models
 COACH_AGENT_MODEL = os.getenv("COACH_AGENT_MODEL", "gemini-3.5-flash")
 
+# Single-user app for now: tools fall back to this id when the session
+# hasn't set a "user:id" state value yet.
+DEFAULT_USER_ID = os.getenv("DEFAULT_USER_ID", "default_user")
+
 # Firestore collection names
 DAILY_SUMMARIES_COLLECTION = "daily_summaries"
 MEALS_COLLECTION = "meals"
