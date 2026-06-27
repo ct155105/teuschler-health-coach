@@ -1,0 +1,24 @@
+"""Centralized environment configuration for the health coach agent.
+
+Reads from `health_coach/.env` (loaded via python-dotenv) so every module
+gets its settings from one place instead of scattering `os.getenv` calls.
+"""
+
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent / ".env")
+
+# Google Cloud / Firestore
+GOOGLE_CLOUD_PROJECT = os.environ["GOOGLE_CLOUD_PROJECT"]
+GOOGLE_CLOUD_LOCATION = os.environ["GOOGLE_CLOUD_LOCATION"]
+
+# LLM models
+COACH_AGENT_MODEL = os.getenv("COACH_AGENT_MODEL", "gemini-3.5-flash")
+
+# Firestore collection names
+DAILY_SUMMARIES_COLLECTION = "daily_summaries"
+MEALS_COLLECTION = "meals"
+WEIGHT_ENTRIES_COLLECTION = "weight_entries"
