@@ -22,10 +22,106 @@ The required convention for any deployment path: the agent module defines a `roo
 
 ## Deployment targets
 
-- **Agent Runtime** (Agent Platform on Google Cloud) — fully managed, auto-scaling, purpose-built for ADK-style agents.
+- **Agent Runtime** (Agent Platform on Google Cloud, formerly "Agent Engine"/Vertex AI Reasoning Engine) — fully managed, auto-scaling, purpose-built for ADK-style agents. This repo (`teuschler-health-coach`) targets this.
 - **Cloud Run** — managed, container-based, auto-scaling general compute.
 - **GKE** — for more control or when running self-hosted/open models.
 - **Any container runtime** (Docker/Podman, offline/disconnected) — package manually and run anywhere.
+
+## Agent Runtime
+
+Agent Runtime is a paid service (free tier available) — see the [pricing page](https://cloud.google.com/vertex-ai/pricing#vertex-ai-agent-engine).
+
+### Critical: what actually gets deployed (Python)
+
+`adk deploy agent_engine` uploads **only your agent code and its declared dependencies** — for Python, this explicitly *excludes* the ADK API server and ADK web UI libraries; Agent Runtime provides those itself. Practically this means:
+
+- Your deployed package is just `agent.py` (defining `root_agent`) + `__init__.py` (`from . import agent`) + `.env` — the same minimal shape `adk web`/`adk run` already use locally.
+- **Any custom `Runner`/`SessionService`/`MemoryService` wiring you write locally (e.g. a `runtime.py`) does NOT ship to or run on Agent Runtime.** Once deployed, the platform wraps `root_agent` itself and serves it through its own managed `VertexAiSessionService` — your local session/memory wiring code is dev/test-only scaffolding, not part of the production code path.
+- Session lifecycle in production is driven by whoever *calls* the deployed agent (a client app, a backend proxy), via the Agent Platform SDK or REST: `async_create_session(user_id=...)` → server returns a session, then `async_stream_query(user_id, session_id, message)` to converse.
+
+### Prerequisites
+
+- A Google Cloud project with the **Agent Platform API** (`aiplatform.googleapis.com`) and **Cloud Resource Manager API** enabled.
+- `gcloud auth login` then `gcloud auth application-default login`.
+
+### Deploy
+
+```bash
+PROJECT_ID=my-project-id
+LOCATION_ID=us-central1   # see https://docs.cloud.google.com/agent-builder/locations#supported-regions-agent-engine
+
+adk deploy agent_engine \
+    --project=$PROJECT_ID \
+    --region=$LOCATION_ID \
+    --display_name="My First Agent" \
+    path/to/my_agent
+```
+
+Successful output includes a `RESOURCE_ID` (numeric, e.g. `751619551677906944`) identifying the deployed reasoning engine — needed for all future interaction with this deployment:
+
+```text
+AgentEngine created. Resource name: projects/123456789/locations/us-central1/reasoningEngines/751619551677906944
+```
+
+### Interacting with a deployed agent
+
+Query URL shape:
+```text
+https://{LOCATION_ID}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION_ID}/reasoningEngines/{RESOURCE_ID}:query
+```
+
+Create a session, then send messages, via REST:
+```bash
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" \
+  https://$LOCATION-aiplatform.googleapis.com/v1/projects/$PROJECT/locations/$LOCATION/reasoningEngines/$RESOURCE:query \
+  -d '{"class_method": "async_create_session", "input": {"user_id": "u_123"}}'
+# response includes a server-generated numeric session "id" — extract it
+
+curl -H "Authorization: Bearer $(gcloud auth print-access-token)" -H "Content-Type: application/json" \
+  "https://$LOCATION-aiplatform.googleapis.com/v1/projects/$PROJECT/locations/$LOCATION/reasoningEngines/$RESOURCE:streamQuery?alt=sse" \
+  -d '{"class_method": "async_stream_query", "input": {"user_id": "u_123", "session_id": "<id from above>", "message": "..."}}'
+```
+
+Or via the Agent Platform Python SDK:
+```python
+remote_app = agent_engines.get("projects/.../reasoningEngines/751619551677906944")
+remote_session = await remote_app.async_create_session(user_id="u_456")
+
+async for event in remote_app.async_stream_query(
+    user_id="u_456", session_id=remote_session["id"], message="...",
+):
+    print(event)
+```
+
+Multimodal (image) queries — pass a list of `types.Part`, and prefer a GCS URI over inline bytes:
+```python
+from google.genai import types
+
+image_part = types.Part.from_uri(file_uri="gs://bucket/photo.jpg", mime_type="image/jpeg")
+text_part = types.Part.from_text(text="What is in this image?")
+
+async for event in remote_app.async_stream_query(
+    user_id="u_456", session_id=remote_session["id"], message=[text_part, image_part],
+):
+    print(event)
+```
+
+Clean up a test deployment: `remote_app.delete(force=True)` (also deletes child sessions).
+
+### ⚠️ Custom/deterministic session IDs are currently unreliable
+
+The `VertexAiSessionService`/Agent Runtime session API accepts an optional custom `session_id` in its interface, but as of this writing there are open upstream bugs (`google/adk-python` issues #987 and #2166) where supplying a custom session ID fails server-side — only server-auto-generated IDs reliably work. **Do not design a "deterministic session ID" scheme (e.g. session_id = today's date) against the deployed Agent Runtime session service** — it may break. If you need to find/reuse "today's session for this user" in production, list the user's sessions and match by creation/update timestamp instead of relying on a chosen ID string.
+
+### Accelerated path: Agents CLI (`agents-cli`)
+
+For a more batteries-included setup (CI/CD, Terraform IaC, telemetry) instead of the manual `adk deploy agent_engine` path above:
+```bash
+agents-cli scaffold enhance --deployment-target agent_engine   # adds deployment scaffolding to your project
+gcloud auth application-default login
+gcloud config set project your-project-id
+agents-cli deploy   # reads deployment_target from pyproject.toml
+```
+This restructures the project (adds `app/`, `.cloudbuild/`, `deployment/`, `Makefile`, etc.) — heavier-weight than the manual path; prefer the manual `adk deploy agent_engine` path unless you specifically need the CI/CD scaffolding.
 
 ## Cloud Run
 

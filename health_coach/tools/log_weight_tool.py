@@ -9,7 +9,7 @@ from health_coach.services import firestore_db
 
 
 def log_weight_tool(
-    weight_kg: float, tool_context: ToolContext, note: str | None = None
+    weight_lb: float, tool_context: ToolContext, note: str | None = None
 ) -> dict:
     """Logs the user's body weight for today.
 
@@ -17,7 +17,7 @@ def log_weight_tool(
     is kept per day; calling this again today overwrites today's value.
 
     Args:
-        weight_kg: The user's weight in kilograms.
+        weight_lb: The user's weight in pounds.
         note: Optional context about the measurement, e.g. "fasted",
             "after workout". Omit if the user didn't mention any.
 
@@ -30,13 +30,13 @@ def log_weight_tool(
 
     try:
         entry = firestore_db.log_weight(
-            user_id=user_id, date=today, weight_kg=weight_kg, note=note
+            user_id=user_id, date=today, weight_lb=weight_lb, note=note
         )
     except Exception as e:
         return {"status": "error", "message": f"Failed to log weight: {e}"}
 
     return {
         "status": "success",
-        "message": f"Logged {weight_kg} kg for {today}.",
+        "message": f"Logged {weight_lb} lb for {today}.",
         "entry": entry,
     }

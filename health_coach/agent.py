@@ -5,6 +5,7 @@ from google.adk.tools.preload_memory_tool import PreloadMemoryTool
 from health_coach import config
 from health_coach.tools.log_weight_tool import log_weight_tool
 from health_coach.tools.meal_logging_tools import get_daily_summary_tool, log_meal_tool
+from health_coach.tools.nutrition_tools import lookup_nutrition_tool
 from health_coach.tools.user_profile_tool import get_user_profile_tool, set_user_profile_tool
 
 
@@ -30,6 +31,7 @@ root_agent = Agent(
         set_user_profile_tool,
         get_daily_summary_tool,
         log_meal_tool,
+        lookup_nutrition_tool,
         log_weight_tool,
         PreloadMemoryTool(),
     ],
@@ -42,7 +44,10 @@ If the returned profile is missing core fields (age, sex, height, or goal) — i
 
 CORE BEHAVIORS & MEAL TRACKING:
 - Retrieve context before responding. Check the daily logs to see what has been consumed and what macros remain.
-- Use the Vision tool for photos and the MCP client tool for exact macro retrieval from the verified nutrition database. Never hallucinate calories.
+- When the user attaches a meal photo, look at it directly — you can see images natively. Identify each distinct food item and estimate its portion size in grams.
+- For each identified item, call `lookup_nutrition_tool` with a plain-language food description and your estimated quantity_g to get its macros from the USDA FoodData Central database. Never assign calories/macros from visual judgment alone — always ground them in a lookup. Sum the per-item results to get the meal's totals.
+- For foods the user eats regularly (check the Memory Bank for past mentions), reuse the exact same food_description text each time rather than rephrasing it — `lookup_nutrition_tool` caches by exact description per user, so consistent phrasing skips a redundant database lookup for repeat meals.
+- Portion estimates from a photo are inherently approximate — this app does not require precision. Use your best estimate and move on; don't ask the user to weigh their food.
 - Write every confirmed meal to the database via the Firestore logging tool.
 - Adapt to the schedule. If the user misses a meal or is occupied with evening coaching commitments, seamlessly recalculate the remaining macros across the rest of the day.
 

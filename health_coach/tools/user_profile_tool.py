@@ -18,7 +18,7 @@ def get_user_profile_tool(tool_context: ToolContext) -> dict:
     Returns:
         dict: status ("success" or "error") and, on success, a `profile`
         dict containing any stored profile fields (e.g. age, sex,
-        height_cm, goal), `latest_weight_kg` / `latest_weight_date`
+        height_in, goal), `latest_weight_lb` / `latest_weight_date`
         (None if the user has never logged a weight), and today's
         `target_calories`, `target_protein_g`, `target_carbs_g`,
         `target_fat_g`.
@@ -38,7 +38,7 @@ def set_user_profile_tool(
     tool_context: ToolContext,
     age: int | None = None,
     sex: str | None = None,
-    height_cm: float | None = None,
+    height_in: float | None = None,
     goal: str | None = None,
 ) -> dict:
     """Creates or updates the user's profile fields.
@@ -51,9 +51,9 @@ def set_user_profile_tool(
     Args:
         age: The user's age in years.
         sex: The user's sex, e.g. "male", "female".
-        height_cm: The user's height in centimeters.
+        height_in: The user's height in inches.
         goal: Free-text description of the user's goal, e.g.
-            "lose 0.5kg/week", "maintain weight".
+            "lose 1lb/week", "maintain weight".
 
     Returns:
         dict: status ("success" or "error"), a human-readable message,
@@ -63,7 +63,7 @@ def set_user_profile_tool(
 
     try:
         updated = firestore_db.set_user_profile(
-            user_id=user_id, age=age, sex=sex, height_cm=height_cm, goal=goal
+            user_id=user_id, age=age, sex=sex, height_in=height_in, goal=goal
         )
     except Exception as e:
         return {"status": "error", "message": f"Failed to update user profile: {e}"}
