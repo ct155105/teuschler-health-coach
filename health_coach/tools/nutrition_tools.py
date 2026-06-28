@@ -2,7 +2,6 @@
 
 from google.adk.tools import ToolContext
 
-from health_coach import config
 from health_coach.services import firestore_db, usda_fdc
 
 
@@ -33,7 +32,7 @@ def lookup_nutrition_tool(
         it may not be an exact match) and scaled `calories`, `protein_g`,
         `carbs_g`, `fat_g` for the given quantity.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
 
     match = firestore_db.get_saved_meal(user_id=user_id, food_description=food_description)
     if match is None:

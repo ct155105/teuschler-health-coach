@@ -234,18 +234,27 @@ def get_daily_summary(user_id: str, date: str) -> dict[str, Any]:
 
     summary = doc.to_dict()
     summary["date"] = date
-    summary["remaining_calories"] = summary.get("target_calories", 0) - summary.get(
-        "consumed_calories", 0
+    # A doc can exist with only some fields set (e.g. log_meal's merge
+    # write only ever sets consumed_*, never target_*, if a meal gets
+    # logged before targets are) — backfill defaults so every key below
+    # is always present, not just safely defaulted for this computation.
+    for key in (
+        "target_calories",
+        "target_protein_g",
+        "target_carbs_g",
+        "target_fat_g",
+        "consumed_calories",
+        "consumed_protein_g",
+        "consumed_carbs_g",
+        "consumed_fat_g",
+    ):
+        summary.setdefault(key, 0)
+    summary["remaining_calories"] = summary["target_calories"] - summary["consumed_calories"]
+    summary["remaining_protein_g"] = (
+        summary["target_protein_g"] - summary["consumed_protein_g"]
     )
-    summary["remaining_protein_g"] = summary.get("target_protein_g", 0) - summary.get(
-        "consumed_protein_g", 0
-    )
-    summary["remaining_carbs_g"] = summary.get("target_carbs_g", 0) - summary.get(
-        "consumed_carbs_g", 0
-    )
-    summary["remaining_fat_g"] = summary.get("target_fat_g", 0) - summary.get(
-        "consumed_fat_g", 0
-    )
+    summary["remaining_carbs_g"] = summary["target_carbs_g"] - summary["consumed_carbs_g"]
+    summary["remaining_fat_g"] = summary["target_fat_g"] - summary["consumed_fat_g"]
     return summary
 
 

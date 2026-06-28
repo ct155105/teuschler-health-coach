@@ -4,7 +4,6 @@ from datetime import date as date_cls
 
 from google.adk.tools import ToolContext
 
-from health_coach import config
 from health_coach.services import firestore_db
 
 
@@ -25,7 +24,7 @@ def log_weight_tool(
         dict: status ("success" or "error"), a human-readable message,
         and the stored weight entry on success.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
     today = date_cls.today().isoformat()
 
     try:

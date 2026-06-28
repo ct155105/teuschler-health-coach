@@ -81,5 +81,6 @@ def get_user_profile(tool_context: ToolContext) -> dict:
 | Bidi-streaming (Live API), streaming tools | `references/streaming.md` |
 | Artifacts (binary/file data, versioning, namespacing) | `references/artifacts.md` |
 | `adk run`/`adk web` CLI, Cloud Run, Agent Runtime deployment | `references/deployment.md` |
+| Agent Runtime IAM/identity (service account vs. per-agent identity, granting Firestore/Storage access to a deployed agent) | `references/agent-runtime-identity.md` |
 
 Each reference file is self-contained with real, adapted-from-docs Python code. Read only the files relevant to the task at hand.

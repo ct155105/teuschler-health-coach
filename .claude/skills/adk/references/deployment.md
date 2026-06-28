@@ -43,6 +43,35 @@ Agent Runtime is a paid service (free tier available) — see the [pricing page]
 
 - A Google Cloud project with the **Agent Platform API** (`aiplatform.googleapis.com`) and **Cloud Resource Manager API** enabled.
 - `gcloud auth login` then `gcloud auth application-default login`.
+- **The machine running `adk deploy` needs the `vertexai` SDK installed locally** — this is separate from what gets bundled into the deployed container. Without it, the deploy command fails with `Deploy failed: No module named 'vertexai'`. Install it as a project dependency: `uv add "google-cloud-aiplatform[agent_engines]"` (or `pip install`). This is a local/dev-time dependency for invoking the deploy API, not something your `agent.py` needs to import.
+- **Your deployed agent's own code needs separate IAM grants to call other GCP APIs** (Firestore, Storage, etc.) — `adk deploy`'s prerequisites only cover the *deploy operation itself*, not what the running agent can access. See `references/agent-runtime-identity.md` for the default shared-service-account model and how to grant it Firestore/Storage access.
+
+### What actually gets bundled (verified against ADK 2.3.0's `cli_deploy.py`)
+
+`adk deploy agent_engine <agent_dir>` does a `shutil.copytree` of the **entire agent directory as-is** — there's no automatic exclusion of `__pycache__/`, local `.adk/` session caches, etc. To exclude files, add an **`.ae_ignore`** file inside the agent directory using `.gitignore`-style glob patterns:
+
+```text
+# health_coach/.ae_ignore
+.adk
+__pycache__
+*.pyc
+```
+
+**Dependencies** come from a `requirements.txt` *inside the agent directory* (e.g. `health_coach/requirements.txt`), **not** from the project's `pyproject.toml`/`uv.lock` and **not** from the deprecated `--requirements_file` flag. If this file doesn't exist, ADK silently creates one containing only `google-adk[a2a]==<version>` — any other runtime dependency (`firebase-admin`, etc.) would be missing from the deployed container. Create it yourself listing your actual top-level deps (transitive deps like `httpx`/`python-dotenv` get pulled in automatically via `google-adk`'s/`firebase-admin`'s own dependency trees — no need to list them):
+
+```text
+# health_coach/requirements.txt
+firebase-admin>=7.4.0
+google-adk>=2.3.0
+```
+
+The CLI then auto-appends `google-cloud-aiplatform[agent_engines]` and `google-adk[a2a]==<version>` to this file if not already present — you don't need to add those yourself.
+
+**`.env` is read and shipped as environment variables** on the deployed resource: ADK reads `<agent_dir>/.env` (or `--env_file`) and passes its key/values as `env_vars` to the created Agent Engine instance. `GOOGLE_CLOUD_LOCATION` in `.env` *does* pass through unchanged even when `--region` is also passed (they serve different purposes — `--region` is where the Reasoning Engine resource itself lives; `GOOGLE_CLOUD_LOCATION` is what your agent's own genai/Vertex client uses, e.g. `"global"` for Gemini's global endpoint). Everything else in `.env` passes through as-is. Don't put secrets here that you don't want stored as plain env vars on the resource.
+
+⚠️ **`GOOGLE_CLOUD_PROJECT` is the one exception — it gets dropped entirely**, not passed through, whenever `--project` is set (verified: it's simply absent from the deployed resource's env vars, confirmed via `GET .../reasoningEngines/{id}`). The deployed container then gets an *ambient* `GOOGLE_CLOUD_PROJECT` injected by the platform itself — set to the numeric **project number**, not the project ID string. This silently breaks any of your own code that reads `os.environ["GOOGLE_CLOUD_PROJECT"]` expecting the project ID (e.g. `firebase_admin`/Firestore project resolution does NOT treat project number and project ID as interchangeable — using the number gives `404 The database (default) does not exist for project {number}` even though the database exists under the project ID).
+
+`load_dotenv()` defaults to `override=False`, so it won't fix this either — it never overwrites an already-set env var, and the ambient `GOOGLE_CLOUD_PROJECT` is already set before your code runs. **Fix: use a separate env var name your own code controls** for anything that needs the actual project ID string (e.g. `FIRESTORE_PROJECT_ID` instead of reusing `GOOGLE_CLOUD_PROJECT`) rather than fighting the platform with `load_dotenv(..., override=True)` — that would also clobber other ambient platform env vars you might not want overridden.
 
 ### Deploy
 

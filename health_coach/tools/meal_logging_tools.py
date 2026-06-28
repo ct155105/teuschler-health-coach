@@ -4,7 +4,6 @@ from datetime import date as date_cls
 
 from google.adk.tools import ToolContext
 
-from health_coach import config
 from health_coach.services import firestore_db
 
 
@@ -33,7 +32,7 @@ def log_meal_tool(
         dict: status ("success" or "error"), a human-readable message,
         and the stored meal record on success.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
     today = date_cls.today().isoformat()
 
     try:
@@ -70,7 +69,7 @@ def get_daily_summary_tool(tool_context: ToolContext) -> dict:
         consumed_carbs_g, consumed_fat_g, and the corresponding
         remaining_* values.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
     today = date_cls.today().isoformat()
 
     try:

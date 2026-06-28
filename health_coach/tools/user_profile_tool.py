@@ -4,7 +4,6 @@ from datetime import date as date_cls
 
 from google.adk.tools import ToolContext
 
-from health_coach import config
 from health_coach.services import firestore_db
 
 
@@ -23,7 +22,7 @@ def get_user_profile_tool(tool_context: ToolContext) -> dict:
         `target_calories`, `target_protein_g`, `target_carbs_g`,
         `target_fat_g`.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
     today = date_cls.today().isoformat()
 
     try:
@@ -59,7 +58,7 @@ def set_user_profile_tool(
         dict: status ("success" or "error"), a human-readable message,
         and the fields that were written on success.
     """
-    user_id = tool_context.state.get("user:id", config.DEFAULT_USER_ID)
+    user_id = tool_context.session.user_id
 
     try:
         updated = firestore_db.set_user_profile(

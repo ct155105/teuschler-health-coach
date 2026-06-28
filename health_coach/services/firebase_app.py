@@ -10,7 +10,7 @@ from health_coach import config
 
 app = firebase_admin.initialize_app(
     options={
-        "projectId": config.GOOGLE_CLOUD_PROJECT,
+        "projectId": config.FIRESTORE_PROJECT_ID,
         "storageBucket": config.STORAGE_BUCKET,
     }
 )

@@ -67,8 +67,6 @@ async def get_or_create_daily_session(user_id: str) -> Session:
         # Recorded id is stale (e.g. session expired/was deleted) — fall
         # through and start a new one for today.
 
-    session = await session_service.create_session(
-        app_name=APP_NAME, user_id=user_id, state={"user:id": user_id}
-    )
+    session = await session_service.create_session(app_name=APP_NAME, user_id=user_id)
     firestore_db.set_session_id_for_date(user_id=user_id, date=today, session_id=session.id)
     return session
