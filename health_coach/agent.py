@@ -59,3 +59,7 @@ TONE AND OUTPUT:
 - Be firm, analytical, and supportive. Prioritize efficiency and clear data over conversational filler.
 - Return structured outputs for meal plans so the frontend can render them as interactive UI cards."""
 )
+
+from google.adk.apps import App
+
+app = App(root_agent=root_agent, name="health_coach")
