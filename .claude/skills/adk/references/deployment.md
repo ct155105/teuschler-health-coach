@@ -62,10 +62,12 @@ __pycache__
 ```text
 # health_coach/requirements.txt
 firebase-admin>=7.4.0
-google-adk>=2.3.0
+google-adk[otel-gcp]>=2.3.0
 ```
 
 The CLI then auto-appends `google-cloud-aiplatform[agent_engines]` and `google-adk[a2a]==<version>` to this file if not already present — you don't need to add those yourself.
+
+⚠️ **If using `--otel_to_cloud`, you need the `[otel-gcp]` extra, not just bare `google-adk`.** Without it, the deployed container's startup logs show warnings like `telemetry enabled but proceeding without gRPC instrumentation, because google-adk[otel-gcp] has not been installed` and `Unable to import GoogleGenAiSdkInstrumentor - some telemetry will be disabled`. Generic spans still reach Cloud Trace, but the **Agent Platform Traces view in the Cloud Console specifically needs this extra's instrumentation/semantic attributes to parse spans into agent sessions, model calls, and tool executions** — without it, that view appears to not be working at all (e.g. still prompting you to "enable tracing" even after `--otel_to_cloud` is set), even though raw trace data is technically being recorded.
 
 **`.env` is read and shipped as environment variables** on the deployed resource: ADK reads `<agent_dir>/.env` (or `--env_file`) and passes its key/values as `env_vars` to the created Agent Engine instance. `GOOGLE_CLOUD_LOCATION` in `.env` *does* pass through unchanged even when `--region` is also passed (they serve different purposes — `--region` is where the Reasoning Engine resource itself lives; `GOOGLE_CLOUD_LOCATION` is what your agent's own genai/Vertex client uses, e.g. `"global"` for Gemini's global endpoint). Everything else in `.env` passes through as-is. Don't put secrets here that you don't want stored as plain env vars on the resource.
 

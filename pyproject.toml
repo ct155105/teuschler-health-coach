@@ -6,6 +6,6 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "firebase-admin>=7.4.0",
-    "google-adk>=2.3.0",
+    "google-adk[otel-gcp]>=2.3.0",
     "google-cloud-aiplatform[agent-engines]>=1.158.0",
 ]

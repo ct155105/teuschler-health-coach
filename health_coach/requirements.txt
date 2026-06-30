@@ -1,2 +1,2 @@
 firebase-admin>=7.4.0
-google-adk>=2.3.0
+google-adk[otel-gcp]>=2.3.0
